@@ -109,7 +109,9 @@ class BlanketBuilder(Builder):
             + self.get_segments(ib_manifold, self.MANIFOLD, inboard=True, color_index=2)
             + self.get_segments(ob_fw, self.FW, inboard=False, color_index=0)
             + self.get_segments(ob_bz, self.BZ, inboard=False, color_index=1)
-            + self.get_segments(ob_manifold, self.MANIFOLD, inboard=False, color_index=2)
+            + self.get_segments(
+                ob_manifold, self.MANIFOLD, inboard=False, color_index=2
+            )
         )
 
         return self.component_tree(
@@ -214,6 +216,7 @@ class BlanketBuilder(Builder):
     def _subdivide_poloidally(
         self, silhouette: BluemiraFace, fw_thickness: float, bz_thickness: float
     ):
+        # TODO: Add the cylindarical mounting points here
         base_wire = make_polygon(self.panel_points.T)
         base_wire.close()
         fw_cut_wire = offset_wire(base_wire, fw_thickness)
@@ -226,7 +229,12 @@ class BlanketBuilder(Builder):
         return fw, bz, manifold
 
     def get_segments(
-        self, silhouette: BluemiraFace, sub_name: str, *, inboard: bool, color_index: int
+        self,
+        silhouette: BluemiraFace,
+        sub_name: str,
+        *,
+        inboard: bool,
+        color_index: int,
     ):
         """
         Create the sub-layer-segments of the blanket from a silhouette of

@@ -105,6 +105,39 @@
   },
   "Blanket": {
     "run_mode": "run",
+    "removal_timeout": 30,
+    "params": {
+      "bb_max_width": {
+        "value": 5.0,
+        "unit": "m",
+        "source": "Input",
+        "long_name": "Maximum blanket module width"
+      },
+      "bb_max_length": {
+        "value": 5.0,
+        "unit": "m",
+        "source": "Input",
+        "long_name": "Maximum blanket module length"
+      },
+      "bb_max_height": {
+        "value": 5.0,
+        "unit": "m",
+        "source": "Input",
+        "long_name": "Maximum blanket module height"
+      },
+      "bb_upper_port_blanket_clearance": {
+        "value": 0.02,
+        "unit": "m",
+        "source": "Input",
+        "long_name": "Minimum clearance between blanket modules and the upper port"
+      },
+      "bb_mass_limit": {
+        "value": 5000.0,
+        "unit": "kg",
+        "source": "Input",
+        "long_name": "Maximum blanket module mass"
+      }
+    },
     "material": {
       "FW": "BB_FW_MATERIAL",
       "BZ": "BB_BZ_MATERIAL",

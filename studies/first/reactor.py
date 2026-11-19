@@ -22,11 +22,14 @@ The EUDEMO reactor design routine.
 
 import json
 import shutil
+import time
 from copy import copy
 from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
+from matproplib.conditions import OperationalConditions
+
 from bluemira.base.components import Component
 from bluemira.base.designer import run_designer
 from bluemira.base.logs import set_log_level
@@ -57,8 +60,13 @@ from bluemira.radiation_transport.neutronics.zero_d_neutronics import (
     ZeroDNeutronicsModel,
 )
 from bluemira.utilities.tools import json_writer
-from matproplib.conditions import OperationalConditions
-
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_removal_simulation import (
+    BlanketRemovalSimulation,
+)
+from bluemira_wrapper.validators.blanket_validators.blanket_validator import (
+    BlanketValidator,
+    BlanketValidatorError,
+)
 from eudemo.blanket import Blanket, BlanketBuilder, BlanketDesigner
 from eudemo.coil_structure import build_coil_structures_component
 from eudemo.comp_managers import (
@@ -296,7 +304,10 @@ def build_tf_coils(
     builder = TFCoilBuilder(
         params, build_config, centreline.create_shape(), wp_cross_section
     )
-    return TFCoil(builder.build(), builder._make_field_solver(), centreline), peak_ripple
+    return (
+        TFCoil(builder.build(), builder._make_field_solver(), centreline),
+        peak_ripple,
+    )
 
 
 def build_pf_coils(
@@ -672,7 +683,6 @@ def save_reactor(reactor, reactor_config, folder_name) -> Path:
 
 if __name__ == "__main__":
     set_log_level("INFO")
-    import time
 
     run_time_track = {
         "Total": 0.0,
@@ -686,11 +696,13 @@ if __name__ == "__main__":
         reactor_config = ReactorConfig(BUILD_CONFIG_FILE_PATH, EUDEMOReactorParams)
         reactor = EUDEMO("EUDEMO", n_sectors=reactor_config.global_params.n_TF.value)
 
-        establish_material_cache([
-            "eudemo.materials",
-            "eurofusion_materials.library",
-            "matproplib",
-        ])
+        establish_material_cache(
+            [
+                "eudemo.materials",
+                "eurofusion_materials.library",
+                "matproplib",
+            ]
+        )
 
         process_start = time.time()
         radial_build(
@@ -713,7 +725,6 @@ if __name__ == "__main__":
         )
 
         reactor.equilibria = EquilibriumManager()
-
         reference_eq = build_reference_equilibrium(
             reactor_config.params_for("Free boundary equilibrium"),
             reactor_config.config_for("Free boundary equilibrium"),
@@ -764,11 +775,12 @@ if __name__ == "__main__":
 
         zero_d_params = ZeroDNeutronicsModel(reactor_config.global_params).run()
         reactor_config.global_params.update_from_frame(zero_d_params)
-        if reactor_config.config_for("Neutronics", "CSG").get("enabled", False):
+        csg_conf = reactor_config.config_for("Neutronics", "CSG")
+        if csg_conf.get("enabled", False):
             neutronics_start = time.time()
             neutronics_csg = run_csg_neutronics(
                 reactor_config.params_for("Neutronics", "CSG").global_params,
-                reactor_config.config_for("Neutronics", "CSG"),
+                csg_conf,
                 blanket=reactor.blanket,
                 vacuum_vessel=reactor.vacuum_vessel,
                 ivc_shapes=ivc_shapes,
@@ -777,14 +789,14 @@ if __name__ == "__main__":
             )
             neutronics_end = time.time()
             run_time_track["CSG neutronics"] = neutronics_end - neutronics_start
-
-            if reactor_config.config_for("Neutronics")["show_data"]:
-                reactor.neutronics.plot()
-                bluemira_print(f"{reactor.neutronics}")
         else:
             neutronics_csg = None
 
         reactor.neutronics = NeutronicsManager(zero_d_params, neutronics_csg)
+
+        if csg_conf.get("show_data", False):
+            reactor.neutronics.plot()
+            bluemira_print(f"{reactor.neutronics}")
 
         vv_thermal_shield = build_vacuum_vessel_thermal_shield(
             reactor_config.params_for("Thermal shield"),
@@ -807,7 +819,6 @@ if __name__ == "__main__":
             reactor_config.config_for("Equatorial Port"),
             x_ob=20.0,
         )
-
         eq_port_koz_xz = eq_port_designer.execute()
 
         (
@@ -835,14 +846,14 @@ if __name__ == "__main__":
             ],
         )
 
-        run_vertical_stability_calculation(
-            reactor_config.params_for("Vertical stability").global_params,
-            reactor_config.config_for("Vertical stability"),
-            reactor.equilibria.get_state(reactor.equilibria.SOF).eq,
-            reactor.vacuum_vessel.xz_boundary,
-            reactor.vacuum_vessel.xz_inner_boundary,
-            [upper_port_koz_xz, eq_port_koz_xz, lower_port_koz_xz],
-        )
+        # run_vertical_stability_calculation(
+        #     reactor_config.params_for("Vertical stability").global_params,
+        #     reactor_config.config_for("Vertical stability"),
+        #     reactor.equilibria.get_state(reactor.equilibria.SOF).eq,
+        #     reactor.vacuum_vessel.xz_boundary,
+        #     reactor.vacuum_vessel.xz_inner_boundary,
+        #     [upper_port_koz_xz, eq_port_koz_xz, lower_port_koz_xz],
+        # )
 
         cryostat_thermal_shield = build_cryots(
             reactor_config.params_for("Thermal shield"),
@@ -879,8 +890,6 @@ if __name__ == "__main__":
             reactor.cryostat.xz_boundary,
         )
 
-        # Incorporate ports
-
         ts_upper_port, vv_upper_port = build_upper_port(
             reactor_config.params_for("Upper Port"),
             reactor_config.config_for("Upper Port"),
@@ -892,7 +901,6 @@ if __name__ == "__main__":
             reactor_config.config_for("Equatorial Port"),
             cryostat_thermal_shield.xz_boundary,
         )
-
         ts_lower_port, vv_lower_port = build_lower_port(
             reactor_config.params_for("Lower Port"),
             reactor_config.config_for("Lower Port"),
@@ -911,54 +919,92 @@ if __name__ == "__main__":
             n_TF=reactor_config.global_params.n_TF.value,
         )
 
-        cr_plugs = build_cryostat_plugs(
-            reactor_config.params_for("Cryostat"),
-            reactor_config.config_for("Cryostat"),
-            [ts_upper_port, ts_eq_port, ts_lower_port],
-            reactor.cryostat.xz_boundary,
+        upper_port_xy = vv_upper_port.get_component("xy")
+        if upper_port_xy is None:
+            raise RuntimeError("The vacuum-vessel upper-port XY geometry is missing.")
+
+        upper_port_void = upper_port_xy.get_component("VVUpperPortDuct voidspace")
+        if upper_port_void is None:
+            raise RuntimeError("The vacuum-vessel upper-port void face is missing.")
+
+        validation_error = None
+        # try:
+        #     validation_results = BlanketValidator(
+        #         reactor.blanket,
+        #         reactor_config.params_for("Blanket"),
+        #     ).execute(upper_port_void.shape)
+        # except BlanketValidatorError as error:
+        #     validation_error = error
+        #     bluemira_error("Blanket validation failed")
+        # else:
+        #     for result in validation_results:
+        #         bluemira_print(
+        #             f"Blanket validation {result.name}: "
+        #             f"{'passed' if result.passed else 'failed'}"
+        #         )
+        # if validation_error is not None:
+        #     raise validation_error
+
+        BlanketRemovalSimulation(
+            reactor.blanket,
+            reactor.vacuum_vessel,
+            reactor_config.global_params.n_TF.value,
+        ).run_blanket_sequential_removal(
+            reactor_config.config_for("Blanket")["removal_timeout"]
         )
 
-        rs_plugs = build_radiation_plugs(
-            reactor_config.params_for("RadiationShield"),
-            reactor_config.config_for("RadiationShield"),
-            cr_plugs,
-            reactor.radiation_shield.xz_boundary,
-        )
+        # reactor.save_cad("xyz", filename="eudemo")
+        # reactor.show_cad("xyz", backend="polyscope")
+        # reactor.show_cad("xyz", show_gui_panels=True)
 
-        reactor.cryostat.add_plugs(
-            cr_plugs, n_TF=reactor_config.global_params.n_TF.value
-        )
+        # cr_plugs = build_cryostat_plugs(
+        #     reactor_config.params_for("Cryostat"),
+        #     reactor_config.config_for("Cryostat"),
+        #     [ts_upper_port, ts_eq_port, ts_lower_port],
+        #     reactor.cryostat.xz_boundary,
+        # )
 
-        reactor.radiation_shield.add_plugs(
-            rs_plugs, n_TF=reactor_config.global_params.n_TF.value
-        )
+    # rs_plugs = build_radiation_plugs(
+    #     reactor_config.params_for("RadiationShield"),
+    #     reactor_config.config_for("RadiationShield"),
+    #     cr_plugs,
+    #     reactor.radiation_shield.xz_boundary,
+    # )
+    #
+    # reactor.cryostat.add_plugs(
+    #     cr_plugs, n_TF=reactor_config.global_params.n_TF.value
+    # )
+    #
+    # reactor.radiation_shield.add_plugs(
+    #     rs_plugs, n_TF=reactor_config.global_params.n_TF.value
+    # )
+    #
+    # reactor.neutronics.dagmc = run_dagmc_neutronics(
+    #     reactor,
+    #     reactor_config.params_for("Neutronics", "DAGMC").global_params,
+    #     reactor_config.config_for("Neutronics", "DAGMC"),
+    #     reference_eq,
+    # )
+    #
+    # sspc_solver = SteadyStatePowerCycleSolver(reactor_config.global_params)
+    # sspc_result = sspc_solver.execute()
+    # reactor_config.global_params.P_el_net.set_value(
+    #     sspc_result["P_el_net"], "BLUEMIRA"
+    # )
+    #
+    # add_useful_parameters(reactor, reactor_config, reference_eq)
 
-        reactor.neutronics.dagmc = run_dagmc_neutronics(
-            reactor,
-            reactor_config.params_for("Neutronics", "DAGMC").global_params,
-            reactor_config.config_for("Neutronics", "DAGMC"),
-            reference_eq,
-        )
-
-        sspc_solver = SteadyStatePowerCycleSolver(reactor_config.global_params)
-        sspc_result = sspc_solver.execute()
-        reactor_config.global_params.P_el_net.set_value(
-            sspc_result["P_el_net"], "BLUEMIRA"
-        )
-
-        add_useful_parameters(reactor, reactor_config, reference_eq)
-
-        end = time.time()
-        run_time_track["Total"] = end - start
-        n_config = reactor_config.config_for("Neutronics")
-        particles = n_config.get("particles", n_config["DAGMC"]["particles"])
-        neutrons = f"{particles:.2g}".replace(".", "_").replace("+", "")
-        a_string = f"{reactor_config.global_params.A.value:.3f}".replace(".", "_")
-        folder_name = f"results_v{VERSION:02}/A_{a_string}_neut_{neutrons}"
-        results = save_reactor(reactor, reactor_config, folder_name=folder_name)
-        with open(results / "run_time.json", "w") as f:
-            json.dump(run_time_track, f, indent=2)
-        plt.close("all")
+    # end = time.time()
+    # run_time_track["Total"] = end - start
+    # n_config = reactor_config.config_for("Neutronics")
+    # particles = n_config.get("particles", n_config["DAGMC"]["particles"])
+    # neutrons = f"{particles:.2g}".replace(".", "_").replace("+", "")
+    # a_string = f"{reactor_config.global_params.A.value:.3f}".replace(".", "_")
+    # folder_name = f"results_v{VERSION:02}/A_{a_string}_neut_{neutrons}"
+    # results = save_reactor(reactor, reactor_config, folder_name=folder_name)
+    # with open(results / "run_time.json", "w") as f:
+    #     json.dump(run_time_track, f, indent=2)
+    # plt.close("all")
 
     except Exception as e:
         bluemira_error(e.with_traceback(e.__traceback__))

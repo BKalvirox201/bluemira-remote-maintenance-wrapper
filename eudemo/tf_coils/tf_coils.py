@@ -17,6 +17,7 @@ from typing import TYPE_CHECKING
 import matplotlib.pyplot as plt
 import numpy as np
 import numpy.typing as npt
+
 from bluemira.base.builder import Builder
 from bluemira.base.components import Component, PhysicalComponent
 from bluemira.base.constants import EPS
@@ -107,8 +108,7 @@ class TFCoil(ComponentManager):
             The outer xz-boundary of the TF Coils.
         """
         return (
-            self
-            .component()
+            self.component()
             .get_component("xz")
             .get_component("Casing")
             .get_component("outer")
@@ -125,8 +125,7 @@ class TFCoil(ComponentManager):
         """
         outer = self.xz_outer_boundary
         inner = (
-            self
-            .component()
+            self.component()
             .get_component("xz")
             .get_component("Casing")
             .get_component("inner")
@@ -144,8 +143,7 @@ class TFCoil(ComponentManager):
         """
         return (
             len(self._field_solver.sources)
-            * self
-            .component()
+            * self.component()
             .get_component("xyz")
             .get_component("Sector 1")
             .get_component("Winding Pack 1")
@@ -663,7 +661,9 @@ class TFCoilBuilder(Builder):
 
         return wp_inner, wp_outer, winding_pack
 
-    def _build_xz_ins(self, wp_inner: BluemiraWire, wp_outer: BluemiraWire) -> Component:
+    def _build_xz_ins(
+        self, wp_inner: BluemiraWire, wp_outer: BluemiraWire
+    ) -> Component:
         """
         Insulation and Insertion gap x-z
 
@@ -756,14 +756,18 @@ class TFCoilBuilder(Builder):
         :
             Casing x-y component
         """
-        cas_inner_face = BluemiraFace([
-            ib_cas_wire,
-            deepcopy(ins_inner_face.boundary[0]),
-        ])
-        cas_outer_face = BluemiraFace([
-            ob_cas_wire,
-            deepcopy(ins_outer_face.boundary[0]),
-        ])
+        cas_inner_face = BluemiraFace(
+            [
+                ib_cas_wire,
+                deepcopy(ins_inner_face.boundary[0]),
+            ]
+        )
+        cas_outer_face = BluemiraFace(
+            [
+                ob_cas_wire,
+                deepcopy(ins_outer_face.boundary[0]),
+            ]
+        )
 
         ib_cas_comp = PhysicalComponent(self.INB, cas_inner_face)
         ob_cas_comp = PhysicalComponent(self.OUTB, cas_outer_face)
@@ -945,11 +949,13 @@ class TFCoilBuilder(Builder):
         dy_out[[0, 1]] = -dy_out[[0, 1]]
 
         outboard_wire = make_polygon([dx_out, dy_out, np.zeros(4)], closed=True)
-        outboard_wire.translate((
-            np.max(self.centreline.discretise(ndiscr=2000, byedges=True).x),
-            0,
-            0,
-        ))
+        outboard_wire.translate(
+            (
+                np.max(self.centreline.discretise(ndiscr=2000, byedges=True).x),
+                0,
+                0,
+            )
+        )
 
         return y_in, inboard_wire, outboard_wire
 
@@ -1008,7 +1014,9 @@ class TFCoilBuilder(Builder):
         inner_xs_rect = make_polygon([x_in, y_in, np.zeros(4)], closed=True)
 
         # Sweep with a varying rectangular cross-section
-        idx = np.nonzero(np.isclose(centreline_points.x, np.min(centreline_points.x)))[0]
+        idx = np.nonzero(np.isclose(centreline_points.x, np.min(centreline_points.x)))[
+            0
+        ]
         z_turn_top = np.max(centreline_points.z[idx])
         z_turn_bot = np.min(centreline_points.z[idx])
 
@@ -1071,11 +1079,13 @@ class TFCoilBuilder(Builder):
         x1, z1 = start_point.x[0], start_point.z[0]
         x2, z2 = end_point.x[0], end_point.z[0]
 
-        joiner_wire = make_polygon({
-            "x": [x2, x_inboard, x_inboard, x1],
-            "y": 0,
-            "z": [z2, z2, z1, z1],
-        })
+        joiner_wire = make_polygon(
+            {
+                "x": [x2, x_inboard, x_inboard, x1],
+                "y": 0,
+                "z": [z2, z2, z1, z1],
+            }
+        )
 
         # Make the final casing xz face
         outer_wire = BluemiraWire([outboard_outer_wire, joiner_wire])
