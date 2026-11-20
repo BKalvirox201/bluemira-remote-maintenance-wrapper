@@ -5,30 +5,30 @@ from functools import partial
 from typing import TYPE_CHECKING
 
 import numpy as np
+from scipy.spatial import ConvexHull
+from scipy.spatial.transform import Rotation
+from shapely.geometry import Polygon
+
 from bluemira.base.look_and_feel import (
     bluemira_print,
     bluemira_print_flush,
     bluemira_warn,
 )
-from scipy.spatial import ConvexHull
-from scipy.spatial.transform import Rotation
-from shapely.geometry import Polygon
-
 from bluemira_wrapper.blanket_grouping import group_blanket_components
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.animation import (  # noqa: E501
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.animation import (  # noqa: E501
     PathAnimator,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.constraints import (  # noqa: E501
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.constraints import (  # noqa: E501
     PayloadConstraints,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.environment import (  # noqa: E501
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.environment import (  # noqa: E501
     EnvironmentBuilder,
     PayloadBuilder,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.mesh_extraction import (  # noqa: E501
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.mesh_extraction import (  # noqa: E501
     MeshExtractor,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     Mesh,
     Waypoint,
     WaypointRoute,
@@ -36,7 +36,7 @@ from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models
     euler_degrees_to_rotation_matrix,
     rotation_matrix_to_euler_degrees,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.planning import (  # noqa: E501
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.planning import (  # noqa: E501
     RoutePlanner,
     SinglePathPlanner,
 )
@@ -301,11 +301,13 @@ class BlanketRemovalSimulation:
             yaw_degrees = float(np.degrees(centreline_angle))
             return Waypoint(
                 name="below_upper_port",
-                position=np.array([
-                    centreline_uv[0] * distance_from_origin,
-                    centreline_uv[1] * distance_from_origin,
-                    pivot_point[2] - 0.4,
-                ]),
+                position=np.array(
+                    [
+                        centreline_uv[0] * distance_from_origin,
+                        centreline_uv[1] * distance_from_origin,
+                        pivot_point[2] - 0.4,
+                    ]
+                ),
                 pitch_degrees=pitch_degrees,
                 yaw_degrees=yaw_degrees,
                 rotation_matrix=rotation_matrix,
@@ -537,11 +539,13 @@ def ibs_group_pivot_point(blanket_group: Sequence[Mesh]) -> np.ndarray:
 
 def get_centerline_unit_vector(n_TF: int):
     bisector_angle = 180.0 / n_TF
-    centerline_direction = np.array([
-        np.cos(np.radians(bisector_angle)),
-        np.sin(np.radians(bisector_angle)),
-        0.0,
-    ])
+    centerline_direction = np.array(
+        [
+            np.cos(np.radians(bisector_angle)),
+            np.sin(np.radians(bisector_angle)),
+            0.0,
+        ]
+    )
     centerline_direction /= np.linalg.norm(centerline_direction)
     return centerline_direction
 

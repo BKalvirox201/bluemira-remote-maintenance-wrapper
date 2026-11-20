@@ -20,6 +20,7 @@ The EUDEMO reactor design routine.
 11. Produce power cycle report
 """
 
+import json
 import shutil
 import time
 from copy import copy
@@ -59,8 +60,8 @@ from bluemira.radiation_transport.neutronics.zero_d_neutronics import (
 from bluemira.utilities.tools import json_writer
 from matproplib.conditions import OperationalConditions
 
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_removal_simulation import (
-    BlanketRemovalSimulation,
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation import (
+    blanket_removal_simulation,
 )
 from bluemira_wrapper.validators.blanket_validators.blanket_validator import (
     BlanketValidator,
@@ -843,14 +844,14 @@ if __name__ == "__main__":
             ],
         )
 
-        # run_vertical_stability_calculation(
-        #     reactor_config.params_for("Vertical stability").global_params,
-        #     reactor_config.config_for("Vertical stability"),
-        #     reactor.equilibria.get_state(reactor.equilibria.SOF).eq,
-        #     reactor.vacuum_vessel.xz_boundary,
-        #     reactor.vacuum_vessel.xz_inner_boundary,
-        #     [upper_port_koz_xz, eq_port_koz_xz, lower_port_koz_xz],
-        # )
+        run_vertical_stability_calculation(
+            reactor_config.params_for("Vertical stability").global_params,
+            reactor_config.config_for("Vertical stability"),
+            reactor.equilibria.get_state(reactor.equilibria.SOF).eq,
+            reactor.vacuum_vessel.xz_boundary,
+            reactor.vacuum_vessel.xz_inner_boundary,
+            [upper_port_koz_xz, eq_port_koz_xz, lower_port_koz_xz],
+        )
 
         cryostat_thermal_shield = build_cryots(
             reactor_config.params_for("Thermal shield"),
@@ -917,32 +918,29 @@ if __name__ == "__main__":
         )
 
         upper_port_xy = vv_upper_port.get_component("xy")
-        if upper_port_xy is None:
-            raise RuntimeError("The vacuum-vessel upper-port XY geometry is missing.")
+        # if upper_port_xy is None:
+        #     raise RuntimeError("The vacuum-vessel upper-port XY geometry is missing.")
 
         upper_port_void = upper_port_xy.get_component("VVUpperPortDuct voidspace")
-        if upper_port_void is None:
-            raise RuntimeError("The vacuum-vessel upper-port void face is missing.")
+        # if upper_port_void is None:
+        #     raise RuntimeError("The vacuum-vessel upper-port void face is missing.")
 
         validation_error = None
-        # try:
-        #     validation_results = BlanketValidator(
-        #         reactor.blanket,
-        #         reactor_config.params_for("Blanket"),
-        #     ).execute(upper_port_void.shape)
-        # except BlanketValidatorError as error:
-        #     validation_error = error
-        #     bluemira_error("Blanket validation failed")
-        # else:
-        #     for result in validation_results:
-        #         bluemira_print(
-        #             f"Blanket validation {result.name}: "
-        #             f"{'passed' if result.passed else 'failed'}"
-        #         )
+        try:
+            validation_results = BlanketValidator(
+                reactor.blanket,
+                reactor_config.params_for("Blanket"),
+            ).execute(upper_port_void.shape)
+        except BlanketValidatorError as error:
+            validation_error = error
+            bluemira_error("Blanket validation failed")
+        else:
+            for result in validation_results:
+                bluemira_print(f"Blanket validation {result.name}: {result.status}")
         # if validation_error is not None:
         #     raise validation_error
 
-        BlanketRemovalSimulation(
+        blanket_removal_simulation.BlanketRemovalSimulation(
             reactor.blanket,
             reactor.vacuum_vessel,
             reactor_config.global_params.n_TF.value,
@@ -950,58 +948,50 @@ if __name__ == "__main__":
             reactor_config.config_for("Blanket")["removal_timeout"]
         )
 
-        # reactor.save_cad("xyz", filename="eudemo")
-        # reactor.show_cad("xyz", backend="polyscope")
-        # reactor.show_cad("xyz", show_gui_panels=True)
+        cr_plugs = build_cryostat_plugs(
+            reactor_config.params_for("Cryostat"),
+            reactor_config.config_for("Cryostat"),
+            [ts_upper_port, ts_eq_port, ts_lower_port],
+            reactor.cryostat.xz_boundary,
+        )
 
-        # cr_plugs = build_cryostat_plugs(
-        #     reactor_config.params_for("Cryostat"),
-        #     reactor_config.config_for("Cryostat"),
-        #     [ts_upper_port, ts_eq_port, ts_lower_port],
-        #     reactor.cryostat.xz_boundary,
-        # )
+        rs_plugs = build_radiation_plugs(
+            reactor_config.params_for("RadiationShield"),
+            reactor_config.config_for("RadiationShield"),
+            cr_plugs,
+            reactor.radiation_shield.xz_boundary,
+        )
 
-    # rs_plugs = build_radiation_plugs(
-    #     reactor_config.params_for("RadiationShield"),
-    #     reactor_config.config_for("RadiationShield"),
-    #     cr_plugs,
-    #     reactor.radiation_shield.xz_boundary,
-    # )
-    #
-    # reactor.cryostat.add_plugs(
-    #     cr_plugs, n_TF=reactor_config.global_params.n_TF.value
-    # )
-    #
-    # reactor.radiation_shield.add_plugs(
-    #     rs_plugs, n_TF=reactor_config.global_params.n_TF.value
-    # )
-    #
-    # reactor.neutronics.dagmc = run_dagmc_neutronics(
-    #     reactor,
-    #     reactor_config.params_for("Neutronics", "DAGMC").global_params,
-    #     reactor_config.config_for("Neutronics", "DAGMC"),
-    #     reference_eq,
-    # )
-    #
-    # sspc_solver = SteadyStatePowerCycleSolver(reactor_config.global_params)
-    # sspc_result = sspc_solver.execute()
-    # reactor_config.global_params.P_el_net.set_value(
-    #     sspc_result["P_el_net"], "BLUEMIRA"
-    # )
-    #
-    # add_useful_parameters(reactor, reactor_config, reference_eq)
+        reactor.cryostat.add_plugs(
+            cr_plugs, n_TF=reactor_config.global_params.n_TF.value
+        )
+        reactor.radiation_shield.add_plugs(
+            rs_plugs, n_TF=reactor_config.global_params.n_TF.value
+        )
+        reactor.neutronics.dagmc = run_dagmc_neutronics(
+            reactor,
+            reactor_config.params_for("Neutronics", "DAGMC").global_params,
+            reactor_config.config_for("Neutronics", "DAGMC"),
+            reference_eq,
+        )
+        sspc_solver = SteadyStatePowerCycleSolver(reactor_config.global_params)
+        sspc_result = sspc_solver.execute()
+        reactor_config.global_params.P_el_net.set_value(
+            sspc_result["P_el_net"], "BLUEMIRA"
+        )
+        add_useful_parameters(reactor, reactor_config, reference_eq)
 
-    # end = time.time()
-    # run_time_track["Total"] = end - start
-    # n_config = reactor_config.config_for("Neutronics")
-    # particles = n_config.get("particles", n_config["DAGMC"]["particles"])
-    # neutrons = f"{particles:.2g}".replace(".", "_").replace("+", "")
-    # a_string = f"{reactor_config.global_params.A.value:.3f}".replace(".", "_")
-    # folder_name = f"results_v{VERSION:02}/A_{a_string}_neut_{neutrons}"
-    # results = save_reactor(reactor, reactor_config, folder_name=folder_name)
-    # with open(results / "run_time.json", "w") as f:
-    #     json.dump(run_time_track, f, indent=2)
-    # plt.close("all")
+        end = time.time()
+        run_time_track["Total"] = end - start
+        n_config = reactor_config.config_for("Neutronics")
+        particles = n_config.get("particles", n_config["DAGMC"]["particles"])
+        neutrons = f"{particles:.2g}".replace(".", "_").replace("+", "")
+        a_string = f"{reactor_config.global_params.A.value:.3f}".replace(".", "_")
+        folder_name = f"results_v{VERSION:02}/A_{a_string}_neut_{neutrons}"
+        results = save_reactor(reactor, reactor_config, folder_name=folder_name)
+        with open(results / "run_time.json", "w") as f:
+            json.dump(run_time_track, f, indent=2)
+        plt.close("all")
 
     except Exception as e:
         bluemira_error(e.with_traceback(e.__traceback__))

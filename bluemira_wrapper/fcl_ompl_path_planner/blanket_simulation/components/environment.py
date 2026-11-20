@@ -5,10 +5,10 @@ import FreeCAD
 import numpy as np
 import Part
 
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.mesh_extraction import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.mesh_extraction import (
     MeshExtractor,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     Mesh,
 )
 

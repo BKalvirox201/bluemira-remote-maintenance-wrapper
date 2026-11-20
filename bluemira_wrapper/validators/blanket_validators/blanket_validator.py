@@ -1,26 +1,30 @@
 from __future__ import annotations
 
 import abc
+from copy import deepcopy
 from dataclasses import dataclass
-from typing import cast
+from typing import TYPE_CHECKING, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-from bluemira.base.components import Component, PhysicalComponent
+from matproplib.conditions import STPConditions
+from shapely import Polygon, affinity
+
 from bluemira.base.parameter_frame import (
     Parameter,
     ParameterFrame,
     make_parameter_frame,
 )
-from bluemira.geometry.base import BluemiraGeo
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.tools import offset_wire
-from matproplib.conditions import STPConditions
-from shapely import Polygon, affinity
-from shapely.geometry.base import BaseGeometry
-
 from bluemira_wrapper.blanket_grouping import group_blanket_components
-from eudemo.blanket import Blanket
+
+if TYPE_CHECKING:
+    from shapely.geometry.base import BaseGeometry
+
+    from bluemira.base.components import Component, PhysicalComponent
+    from bluemira.geometry.base import BluemiraGeo
+    from eudemo.blanket import Blanket
 
 
 class ValidationError(Exception): ...
@@ -29,11 +33,14 @@ class ValidationError(Exception): ...
 @dataclass(slots=True)
 class ValidationResult:
     name: str
-    passed: bool
+    status: str
     message: str = ""
 
 
-class Validator(abc.ABC): ...
+class Validator[InputT, OutputT](abc.ABC):
+    @abc.abstractmethod
+    def execute(self, value: InputT, /) -> OutputT:
+        raise NotImplementedError
 
 
 class BlanketValidatorError(ValidationError):
@@ -49,28 +56,15 @@ class BlanketValidationParameters(ParameterFrame):
     bb_mass_limit: Parameter[float]
 
 
-class BlanketValidator(Validator):
+class BlanketValidator(Validator[BluemiraFace, list[ValidationResult]]):
     param_cls: type[BlanketValidationParameters] = BlanketValidationParameters
     params: BlanketValidationParameters
 
     def __init__(self, blanket: Blanket, params: dict | ParameterFrame):
         self.blanket = blanket
-        _params = make_parameter_frame(params, self.param_cls)
-        assert _params
-        self.params = _params
+        self.params = make_parameter_frame(params, self.param_cls)
 
     def execute(self, upper_port_void_face: BluemiraFace) -> list[ValidationResult]:
-        """_summary_
-
-        Args:
-            upper_port_void_face (BluemiraFace): _description_
-
-        Raises:
-            BlanketValidatorError: _description_
-
-        Returns:
-            list[ValidationResult]: _description_
-        """
         blanket_parts = _get_all_blanket_subcomponents(self.blanket)
         blanket_groups = group_blanket_components(blanket_parts)
 
@@ -91,7 +85,7 @@ class BlanketValidator(Validator):
             ),
         )
 
-        failures = [result for result in results if not result.passed]
+        failures = [result for result in results if result.status == "failed"]
         if failures:
             raise BlanketValidatorError(
                 "\n".join(failure.message for failure in failures)
@@ -111,7 +105,8 @@ class BlanketValidator(Validator):
         for group_key, parts in blanket_groups.items():
             # TODO: Consider normalising rotation in y as well.
             bounding_boxes = [
-                normalise_part_rotation(part.shape).bounding_box for part in parts
+                normalise_part_rotation(deepcopy(part.shape)).bounding_box
+                for part in parts
             ]
             length = max(box.x_max for box in bounding_boxes) - min(
                 box.x_min for box in bounding_boxes
@@ -145,7 +140,7 @@ class BlanketValidator(Validator):
 
         return ValidationResult(
             self._dimensions_within_limits.__name__,
-            len(failure_messages) == 0,
+            "failed" if failure_messages else "passed",
             "\n".join(failure_messages),
         )
 
@@ -178,30 +173,43 @@ class BlanketValidator(Validator):
         normalised_silhouette = normalise_port_rotation(silhouette)
         opening_points = points_from_vertices(normalised_silhouette.vertexes)
         opening_convex_hull = Polygon(opening_points[:, :2]).convex_hull
+        opening_with_tolerance = opening_convex_hull.buffer(1e-9)
+
+        def _centre_on_port(hull: Polygon) -> Polygon:
+            return affinity.translate(
+                hull,
+                xoff=opening_convex_hull.centroid.x - hull.centroid.x,
+                yoff=opening_convex_hull.centroid.y - hull.centroid.y,
+            )
 
         for group_key, parts in blanket_groups.items():
-            part_points = np.vstack([
-                points_from_vertices(normalise_part_rotation(part.shape).vertexes)
-                for part in parts
-            ])
-            part_convex_hull = Polygon(part_points[:, :2]).convex_hull
-            centred_part_convex_hull = affinity.translate(
-                part_convex_hull,
-                xoff=opening_convex_hull.bounds[2] - part_convex_hull.bounds[2],
-                yoff=opening_convex_hull.centroid.y - part_convex_hull.centroid.y,
+            part_points = np.vstack(
+                [
+                    points_from_vertices(
+                        normalise_part_rotation(deepcopy(part.shape)).vertexes
+                    )
+                    for part in parts
+                ]
             )
+            part_convex_hull = Polygon(part_points[:, :2]).convex_hull
+
+            centred_part_convex_hull = _centre_on_port(part_convex_hull)
+            fits = opening_with_tolerance.covers(centred_part_convex_hull)
+
             group_name = _blanket_group_name(group_key)
             plot_polygons(opening_convex_hull, centred_part_convex_hull, group_name)
 
-            if opening_convex_hull.buffer(1e-9).covers(centred_part_convex_hull):
+            if fits:
                 results.append(
-                    ValidationResult(self._all_parts_fit_upper_port.__name__, True, "")
+                    ValidationResult(
+                        self._all_parts_fit_upper_port.__name__, "passed", ""
+                    )
                 )
             else:
                 results.append(
                     ValidationResult(
                         self._all_parts_fit_upper_port.__name__,
-                        False,
+                        "failed",
                         (
                             f"{group_name} cannot fit through "
                             f"upper port with clearance {clearance_m:.3f} m"
@@ -220,19 +228,14 @@ class BlanketValidator(Validator):
         for group_key, parts in blanket_groups.items():
             mass = 0.0
             for part in parts:
-                try:
-                    if not part.material:
-                        raise AttributeError
-                    density = float(part.material.density(STPConditions()))
-
-                except (AttributeError, TypeError, ValueError, NotImplementedError):
+                if not part.material:
                     return ValidationResult(
                         self._mass_within_limits.__name__,
-                        False,
+                        "failed",
                         f"Blanket {_blanket_group_name(group_key)} component "
                         f"{part.name} missing valid density value",
                     )
-
+                density = float(part.material.density(STPConditions()))
                 mass += density * part.shape.volume
 
             if mass > mass_limit:
@@ -243,7 +246,7 @@ class BlanketValidator(Validator):
 
         return ValidationResult(
             self._mass_within_limits.__name__,
-            not failure_messages,
+            "failed" if failure_messages else "passed",
             "\n".join(failure_messages),
         )
 
@@ -287,47 +290,33 @@ def normalise_part_rotation(part: BluemiraGeo) -> BluemiraGeo:
 
     # NOTE: We have to then point the shortest edge of the trapezoid at the origin
     normalised_points = np.asarray(normalised_polygon.exterior.coords[:-1])
-    x_values = np.round(normalised_points[:, 0], 6)
-    left_side = normalised_points[x_values == x_values.min()]
-    right_side = normalised_points[x_values == x_values.max()]
-    left_length = np.ptp(left_side[:, 1])
-    right_length = np.ptp(right_side[:, 1])
-    left_distance = abs(x_values.min())
-    right_distance = abs(x_values.max())
-
-    needs_flip = (left_length > right_length and left_distance < right_distance) or (
-        right_length > left_length and right_distance < left_distance
-    )
+    needs_flip = _needs_flip_to_point_narrow_end_at_origin(normalised_points)
     final_angle = angle + (180.0 if needs_flip else 0.0)
     part.rotate(tuple(part.center_of_mass.tolist()), (0.0, 0.0, 1.0), final_angle)
     return part
 
 
-def normalise_port_rotation(part: BluemiraFace) -> BluemiraFace:
-    vertices = points_from_vertices(part.vertexes)
-    points_2d = vertices[:, :2]
+def _needs_flip_to_point_narrow_end_at_origin(points: np.ndarray) -> bool:
+    x_values = np.round(points[:, 0], 6)
+    left_side = points[x_values == x_values.min()]
+    right_side = points[x_values == x_values.max()]
+    left_length = np.ptp(left_side[:, 1])
+    right_length = np.ptp(right_side[:, 1])
+    left_distance = abs(x_values.min())
+    right_distance = abs(x_values.max())
 
-    if len(points_2d) < 3:
-        raise ValueError("Expected at least 3 vertices.")
-
-    edge_vectors = np.diff(np.vstack([points_2d, points_2d[0]]), axis=0)
-
-    edge_lengths = np.linalg.norm(edge_vectors, axis=1)
-    shortest_edge = edge_vectors[np.argmin(edge_lengths)]
-    angle = np.degrees(np.arctan2(shortest_edge[1], shortest_edge[0]))
-    rotation_angle = 90.0 - angle
-
-    part.rotate(
-        base=tuple(part.center_of_mass.tolist()),
-        direction=(0, 0, 1),
-        degree=rotation_angle,
+    return (left_length > right_length and left_distance < right_distance) or (
+        right_length > left_length and right_distance < left_distance
     )
 
+
+def normalise_port_rotation(part: BluemiraFace) -> BluemiraFace:
+    normalise_part_rotation(part)
     return part
 
 
 def plot_polygon(part_geometry: BaseGeometry, title: str = "") -> None:
-    figure, axis = plt.subplots()
+    _, axis = plt.subplots()
 
     part_x, part_y = part_geometry.boundary.xy
     axis.plot(part_x, part_y, "r-", linewidth=2, label="Part")
@@ -343,7 +332,7 @@ def plot_polygon(part_geometry: BaseGeometry, title: str = "") -> None:
 def plot_polygons(
     opening_geometry: BaseGeometry, part_geometry: BaseGeometry, title: str = ""
 ) -> None:
-    figure, axis = plt.subplots()
+    _, axis = plt.subplots()
 
     opening_x, opening_y = opening_geometry.boundary.xy
     axis.plot(opening_x, opening_y, "b-", linewidth=2, label="Opening")

@@ -4,23 +4,23 @@ from abc import ABC, abstractmethod
 
 import fcl
 import numpy as np
-from bluemira.base.look_and_feel import bluemira_print, bluemira_warn
 from ompl import base as ob
 from ompl import geometric as og
 from scipy.spatial.transform import Rotation
 
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.constraints import (
+from bluemira.base.look_and_feel import bluemira_print, bluemira_warn
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.constraints import (
     PayloadConstraints,
     PayloadStateValidator,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     PlannedPath,
     PlannedRoute,
     Waypoint,
     WaypointRoute,
     WorkspaceBounds,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.optimisation_objective import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.optimisation_objective import (
     BlanketTiltObjective,
     MaximizeCenterlineTranslationObjective,
 )
@@ -55,12 +55,14 @@ class SinglePathPlanner(Planner):
     @staticmethod
     def pose_matrix(state, payload_pivot_point: np.ndarray) -> np.ndarray:
         matrix = np.eye(4)
-        rotation = Rotation.from_quat([
-            state.rotation().x,
-            state.rotation().y,
-            state.rotation().z,
-            state.rotation().w,
-        ]).as_matrix()
+        rotation = Rotation.from_quat(
+            [
+                state.rotation().x,
+                state.rotation().y,
+                state.rotation().z,
+                state.rotation().w,
+            ]
+        ).as_matrix()
         position = np.array([state.getX(), state.getY(), state.getZ()])
         matrix[:3, :3] = rotation
         matrix[:3, 3] = position - rotation @ payload_pivot_point

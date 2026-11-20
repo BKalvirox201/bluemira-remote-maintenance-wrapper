@@ -5,10 +5,10 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
+
 from bluemira.base.parameter_frame import Parameter
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.tools import extrude_shape, make_polygon
-
 from bluemira_wrapper.blanket_grouping import group_blanket_components
 from bluemira_wrapper.validators.blanket_validators.blanket_validator import (
     BlanketValidationParameters,
@@ -99,7 +99,7 @@ class TestMassWithinLimits:
             mass_limit=5000.0,
         )
 
-        assert result == ValidationResult("_mass_within_limits", True, "")
+        assert result == ValidationResult("_mass_within_limits", "passed", "")
 
     def test_fails_when_mass_exceeds_limit(
         self, blanket, validation_params, physical_component
@@ -112,7 +112,7 @@ class TestMassWithinLimits:
         )
 
         assert result.name == "_mass_within_limits"
-        assert not result.passed
+        assert result.status == "failed"
         assert "OBS blanket 0" in result.message
 
     def test_checks_all_parts_when_mass_exceeds_limit(self, blanket, validation_params):
@@ -130,7 +130,7 @@ class TestMassWithinLimits:
         validator = BlanketValidator(blanket, validation_params)
         result = validator._mass_within_limits(group_parts(*parts), mass_limit=1000.0)
 
-        assert not result.passed
+        assert result.status == "failed"
         assert "OBS blanket 0" in result.message
         assert "OBS blanket 1" not in result.message
         for part in parts:
@@ -148,7 +148,7 @@ class TestMassWithinLimits:
         )
 
         assert result.name == "_mass_within_limits"
-        assert not result.passed
+        assert result.status == "failed"
         assert "density" in result.message
 
 
@@ -167,7 +167,7 @@ class TestGeometryDimensionChecks:
             maximum_height=2.0,
         )
 
-        assert result == ValidationResult("_dimensions_within_limits", True, "")
+        assert result == ValidationResult("_dimensions_within_limits", "passed", "")
 
     @patch(BLANKET_VALIDATOR_PATH + ".normalise_part_rotation")
     def test_dimensions_fail_when_height_exceeds_limit(
@@ -184,7 +184,7 @@ class TestGeometryDimensionChecks:
             maximum_height=2.0,
         )
 
-        assert not result.passed
+        assert result.status == "failed"
         assert "maximum height" in result.message
 
     @patch(BLANKET_VALIDATOR_PATH + ".normalise_part_rotation")
@@ -229,7 +229,7 @@ class TestGeometryDimensionChecks:
             maximum_height=2.0,
         )
 
-        assert not result.passed
+        assert result.status == "failed"
         assert "OBS blanket 0" in result.message
         assert "maximum length" in result.message
 
@@ -237,14 +237,31 @@ class TestGeometryDimensionChecks:
 class TestAllPartsFitUpperPort:
     @staticmethod
     def make_rectangular_face(width: float, height: float) -> BluemiraFace:
-        points = np.array([
-            [0.0, 0.0, 0.0],
-            [width, 0.0, 0.0],
-            [width, height, 0.0],
-            [0.0, height, 0.0],
-            [0.0, 0.0, 0.0],
-        ])
+        points = np.array(
+            [
+                [0.0, 0.0, 0.0],
+                [width, 0.0, 0.0],
+                [width, height, 0.0],
+                [0.0, height, 0.0],
+                [0.0, 0.0, 0.0],
+            ]
+        )
 
+        return BluemiraFace(make_polygon(points, closed=True))
+
+    @staticmethod
+    def make_trapezoid_face(
+        bottom_width: float, top_width: float, height: float
+    ) -> BluemiraFace:
+        points = np.array(
+            [
+                [-bottom_width / 2, 0.0, 0.0],
+                [bottom_width / 2, 0.0, 0.0],
+                [top_width / 2, height, 0.0],
+                [-top_width / 2, height, 0.0],
+                [-bottom_width / 2, 0.0, 0.0],
+            ]
+        )
         return BluemiraFace(make_polygon(points, closed=True))
 
     @staticmethod
@@ -264,7 +281,7 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert results[0].passed
+        assert results[0].status == "passed"
 
     def test_large_part_does_not_fit_small_opening(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=1.0, height=1.0)
@@ -276,7 +293,7 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert not results[0].passed
+        assert results[0].status == "failed"
 
     def test_exact_same_size_does_not_fit(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=1.0, height=1.0)
@@ -288,7 +305,31 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert not results[0].passed
+        assert results[0].status == "failed"
+
+    def test_trapezoid_silhouettes_are_normalised_in_the_same_direction(
+        self, validator: BlanketValidator
+    ):
+        opening = self.make_trapezoid_face(
+            bottom_width=5.0, top_width=3.0, height=10.0
+        )
+        opening.translate((10.0, 0.0, 0.0))
+        blanket_shape = self.make_trapezoid_face(
+            bottom_width=2.0, top_width=4.0, height=8.0
+        )
+        blanket_shape.translate((10.0, 0.0, 0.0))
+        blanket_part = make_physical_component(
+            blanket_shape,
+            name="OBS_FW_0 1",
+        )
+
+        with patch(BLANKET_VALIDATOR_PATH + ".plot_polygons"):
+            results = validator._all_parts_fit_upper_port(
+                group_parts(blanket_part), opening, clearance_m=0.0
+            )
+
+        assert len(results) == 1
+        assert results[0].status == "passed"
 
     def test_translation_independent(self, validator: BlanketValidator):
         shape = self.make_rectangular_face(width=1.0, height=1.0)
@@ -302,7 +343,7 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert results[0].passed
+        assert results[0].status == "passed"
 
     def test_box_projection_fits(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=2.0, height=2.0)
@@ -314,7 +355,7 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert results[0].passed
+        assert results[0].status == "passed"
 
     def test_multiple_parts(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=2.0, height=2.0)
@@ -331,8 +372,8 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 2
-        assert results[0].passed
-        assert not results[1].passed
+        assert results[0].status == "passed"
+        assert results[1].status == "failed"
 
     def test_grouped_parts_must_fit_together(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=2.0, height=2.0)
@@ -349,7 +390,7 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert not results[0].passed
+        assert results[0].status == "failed"
         assert "OBS blanket 0" in results[0].message
 
     def test_numerical_boundary_tolerance_allows_fit(self, validator: BlanketValidator):
@@ -362,4 +403,4 @@ class TestAllPartsFitUpperPort:
         )
 
         assert len(results) == 1
-        assert results[0].passed
+        assert results[0].status == "passed"

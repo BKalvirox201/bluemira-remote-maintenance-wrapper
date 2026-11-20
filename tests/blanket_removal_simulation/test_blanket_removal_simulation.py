@@ -4,44 +4,43 @@ from types import SimpleNamespace
 
 import numpy as np
 import pytest
-from scipy.spatial.transform import Rotation
-
-from bluemira_wrapper.fcl_ompl_path_planner import (
+from fcl_ompl_path_planner.blanket_simulation import (
     blanket_removal_simulation as simulation_module,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_removal_simulation import (
+from fcl_ompl_path_planner.blanket_simulation.blanket_removal_simulation import (
     BlanketRemovalSimulation,
     get_centerline_unit_vector,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components import (
+from fcl_ompl_path_planner.blanket_simulation.components import (
     constraints as constraints_module,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components import (
+from fcl_ompl_path_planner.blanket_simulation.components import (
     mesh_extraction as mesh_extraction_module,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.animation import (
+from fcl_ompl_path_planner.blanket_simulation.components.animation import (
     PathAnimator,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.constraints import (
+from fcl_ompl_path_planner.blanket_simulation.components.constraints import (
     PayloadConstraints,
     PayloadStateValidator,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.environment import (
+from fcl_ompl_path_planner.blanket_simulation.components.environment import (
     EnvironmentBuilder,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.mesh_extraction import (
+from fcl_ompl_path_planner.blanket_simulation.components.mesh_extraction import (
     MeshExtractor,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from fcl_ompl_path_planner.blanket_simulation.components.models import (
     Mesh,
     Waypoint,
     WorkspaceBounds,
     euler_degrees_to_rotation_matrix,
     rotation_matrix_to_euler_degrees,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.planning import (
+from fcl_ompl_path_planner.blanket_simulation.components.planning import (
     SinglePathPlanner,
 )
+from scipy.spatial.transform import Rotation
 
 
 class FakeCollisionObject:

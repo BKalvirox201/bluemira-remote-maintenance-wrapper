@@ -6,7 +6,7 @@ import fcl
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     rotation_matrix_to_euler_degrees,
 )
 

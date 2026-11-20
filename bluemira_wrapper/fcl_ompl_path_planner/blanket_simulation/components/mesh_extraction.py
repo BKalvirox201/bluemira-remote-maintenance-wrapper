@@ -3,10 +3,10 @@ from __future__ import annotations
 import MeshPart
 import numpy as np
 import Part
+
 from bluemira.base.components import PhysicalComponent
 from bluemira.base.look_and_feel import bluemira_print
-
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     Mesh,
 )
 from eudemo.blanket import Blanket
@@ -62,8 +62,7 @@ class MeshExtractor:
         bluemira_print("Extracting Blanket meshes for collision detection")
         blanket_component = blanket.component()
         xyz_component = (
-            blanket_component
-            .get_component("xyz")
+            blanket_component.get_component("xyz")
             .get_component("Sector 1")
             .get_component("BB 1")
         )
