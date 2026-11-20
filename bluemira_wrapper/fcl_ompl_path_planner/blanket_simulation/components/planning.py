@@ -1,15 +1,18 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from typing import TYPE_CHECKING
 
-import fcl
 import numpy as np
+from bluemira.base.look_and_feel import bluemira_print, bluemira_warn
 from ompl import base as ob
 from ompl import geometric as og
 from scipy.spatial.transform import Rotation
 
-from bluemira.base.look_and_feel import bluemira_print, bluemira_warn
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.constraints import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.constraints import (  # noqa: E501
     PayloadConstraints,
     PayloadStateValidator,
 )
@@ -20,10 +23,12 @@ from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models
     WaypointRoute,
     WorkspaceBounds,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.optimisation_objective import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.optimisation_objective import (  # noqa: E501
     BlanketTiltObjective,
-    MaximizeCenterlineTranslationObjective,
 )
+
+if TYPE_CHECKING:
+    import fcl
 
 
 class Planner(ABC):
@@ -55,14 +60,12 @@ class SinglePathPlanner(Planner):
     @staticmethod
     def pose_matrix(state, payload_pivot_point: np.ndarray) -> np.ndarray:
         matrix = np.eye(4)
-        rotation = Rotation.from_quat(
-            [
-                state.rotation().x,
-                state.rotation().y,
-                state.rotation().z,
-                state.rotation().w,
-            ]
-        ).as_matrix()
+        rotation = Rotation.from_quat([
+            state.rotation().x,
+            state.rotation().y,
+            state.rotation().z,
+            state.rotation().w,
+        ]).as_matrix()
         position = np.array([state.getX(), state.getY(), state.getZ()])
         matrix[:3, :3] = rotation
         matrix[:3, 3] = position - rotation @ payload_pivot_point
@@ -147,13 +150,9 @@ class SinglePathPlanner(Planner):
 
         multi = ob.MultiOptimizationObjective(space_information)
         tilt_objective = BlanketTiltObjective(space_information)
-        centerline_objective = MaximizeCenterlineTranslationObjective(
-            space_information, self.centerline_direction
-        )
         multi.addObjective(tilt_objective)
-        # TODO: The principle of this is that the port is widest towards the back and so we should move there first.
-        # In practice this doesn't really work as intended for OBS1. To be reviewed and revised.
-        # multi.addObjective(centerline_objective, weight=100000)
+        # TODO: The port is widest towards the back, so we should move there first.
+        # Review and revise this for OBS1; it has not worked as intended.
         problem.setOptimizationObjective(multi)
 
         planner = og.RRTConnect(space_information)
@@ -174,7 +173,7 @@ class SinglePathPlanner(Planner):
             simplifier.collapseCloseVertices(path)
             simplifier.reduceVertices(path)
 
-        except Exception as error:
+        except RuntimeError as error:
             bluemira_warn(f"Path simplification failed: {error}")
 
         return PlannedPath(path=path, start_state=start, goal_state=goal)

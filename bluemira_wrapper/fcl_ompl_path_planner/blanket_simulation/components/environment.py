@@ -1,16 +1,23 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import fcl
 import FreeCAD
 import numpy as np
 import Part
 
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.mesh_extraction import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.mesh_extraction import (  # noqa: E501
     MeshExtractor,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
-    Mesh,
-)
+
+if TYPE_CHECKING:
+    from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (  # noqa: E501
+        Mesh,
+    )
 
 
 class EnvironmentBuilder:
@@ -37,7 +44,9 @@ class EnvironmentBuilder:
             FreeCAD.Vector(0.0, 0.0, -wall_height / 2.0),
         )
         second_wall.rotate(
-            FreeCAD.Vector(0, 0, 0), FreeCAD.Vector(0, 0, 1), np.degrees(segment_angle)
+            FreeCAD.Vector(0, 0, 0),
+            FreeCAD.Vector(0, 0, 1),
+            np.degrees(segment_angle),
         )
 
         return [

@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 from dataclasses import dataclass
@@ -25,20 +28,20 @@ class PayloadConstraints:
         relative_rotation = rotation_matrix @ reference_rotation.T
         yaw, pitch, roll = rotation_matrix_to_euler_degrees(relative_rotation)
 
-        if (
-            self.maximum_roll_degrees is not None
-            and abs(roll) > self.maximum_roll_degrees
-        ):
-            return False
-        if (
-            self.maximum_pitch_degrees is not None
-            and abs(pitch) > self.maximum_pitch_degrees
-        ):
-            return False
-        if self.maximum_yaw_degrees is not None and abs(yaw) > self.maximum_yaw_degrees:
-            return False
-
-        return True
+        return (
+            not (
+                self.maximum_roll_degrees is not None
+                and abs(roll) > self.maximum_roll_degrees
+            )
+            and not (
+                self.maximum_pitch_degrees is not None
+                and abs(pitch) > self.maximum_pitch_degrees
+            )
+            and not (
+                self.maximum_yaw_degrees is not None
+                and abs(yaw) > self.maximum_yaw_degrees
+            )
+        )
 
 
 class PayloadStateValidator:
@@ -60,14 +63,12 @@ class PayloadStateValidator:
     @staticmethod
     def state_to_rotation_matrix(state) -> np.ndarray:
         quaternion = state.rotation()
-        return Rotation.from_quat(
-            [
-                quaternion.x,
-                quaternion.y,
-                quaternion.z,
-                quaternion.w,
-            ]
-        ).as_matrix()
+        return Rotation.from_quat([
+            quaternion.x,
+            quaternion.y,
+            quaternion.z,
+            quaternion.w,
+        ]).as_matrix()
 
     def __call__(self, state) -> bool:
         self.last_invalid_reason = None

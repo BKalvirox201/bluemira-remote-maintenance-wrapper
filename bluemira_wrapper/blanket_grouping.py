@@ -1,4 +1,6 @@
-# SPDX-FileCopyrightText: 2026-present Fusion Power Plant Framework contributors
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 
 from __future__ import annotations
 

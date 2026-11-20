@@ -1,19 +1,23 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import partial
+from operator import itemgetter
 from typing import TYPE_CHECKING
 
 import numpy as np
-from scipy.spatial import ConvexHull
-from scipy.spatial.transform import Rotation
-from shapely.geometry import Polygon
-
 from bluemira.base.look_and_feel import (
     bluemira_print,
     bluemira_print_flush,
     bluemira_warn,
 )
+from scipy.spatial import ConvexHull
+from scipy.spatial.transform import Rotation
+from shapely.geometry import Polygon
+
 from bluemira_wrapper.blanket_grouping import group_blanket_components
 from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.animation import (  # noqa: E501
     PathAnimator,
@@ -188,7 +192,8 @@ class BlanketRemovalSimulation:
             if final_staging_waypoint is None
             else final_staging_waypoint.rotation_matrix
         )
-        assert end_rotation is not None
+        if end_rotation is None:
+            raise RuntimeError("The final staging waypoint has no rotation matrix")
         end_yaw_pitch_roll = rotation_matrix_to_euler_degrees(end_rotation)
         return WaypointRoute(
             waypoints=[
@@ -255,7 +260,7 @@ class BlanketRemovalSimulation:
             else:
                 obs_groups = sorted(
                     (key for key in blanket_groups if key[0] == "OBS"),
-                    key=lambda key: key[1],
+                    key=itemgetter(1),
                 )
                 if not obs_groups:
                     raise ValueError("At least one OBS blanket group is required")
@@ -301,13 +306,11 @@ class BlanketRemovalSimulation:
             yaw_degrees = float(np.degrees(centreline_angle))
             return Waypoint(
                 name="below_upper_port",
-                position=np.array(
-                    [
-                        centreline_uv[0] * distance_from_origin,
-                        centreline_uv[1] * distance_from_origin,
-                        pivot_point[2] - 0.4,
-                    ]
-                ),
+                position=np.array([
+                    centreline_uv[0] * distance_from_origin,
+                    centreline_uv[1] * distance_from_origin,
+                    pivot_point[2] - 0.4,
+                ]),
                 pitch_degrees=pitch_degrees,
                 yaw_degrees=yaw_degrees,
                 rotation_matrix=rotation_matrix,
@@ -539,13 +542,11 @@ def ibs_group_pivot_point(blanket_group: Sequence[Mesh]) -> np.ndarray:
 
 def get_centerline_unit_vector(n_TF: int):
     bisector_angle = 180.0 / n_TF
-    centerline_direction = np.array(
-        [
-            np.cos(np.radians(bisector_angle)),
-            np.sin(np.radians(bisector_angle)),
-            0.0,
-        ]
-    )
+    centerline_direction = np.array([
+        np.cos(np.radians(bisector_angle)),
+        np.sin(np.radians(bisector_angle)),
+        0.0,
+    ])
     centerline_direction /= np.linalg.norm(centerline_direction)
     return centerline_direction
 

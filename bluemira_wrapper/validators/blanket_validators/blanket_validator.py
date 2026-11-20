@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 import abc
@@ -7,9 +10,6 @@ from typing import TYPE_CHECKING, cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matproplib.conditions import STPConditions
-from shapely import Polygon, affinity
-
 from bluemira.base.parameter_frame import (
     Parameter,
     ParameterFrame,
@@ -17,13 +17,16 @@ from bluemira.base.parameter_frame import (
 )
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.tools import offset_wire
+from matproplib.conditions import STPConditions
+from shapely import Polygon, affinity
+
 from bluemira_wrapper.blanket_grouping import group_blanket_components
 
 if TYPE_CHECKING:
-    from shapely.geometry.base import BaseGeometry
-
     from bluemira.base.components import Component, PhysicalComponent
     from bluemira.geometry.base import BluemiraGeo
+    from shapely.geometry.base import BaseGeometry
+
     from eudemo.blanket import Blanket
 
 
@@ -183,14 +186,12 @@ class BlanketValidator(Validator[BluemiraFace, list[ValidationResult]]):
             )
 
         for group_key, parts in blanket_groups.items():
-            part_points = np.vstack(
-                [
-                    points_from_vertices(
-                        normalise_part_rotation(deepcopy(part.shape)).vertexes
-                    )
-                    for part in parts
-                ]
-            )
+            part_points = np.vstack([
+                points_from_vertices(
+                    normalise_part_rotation(deepcopy(part.shape)).vertexes
+                )
+                for part in parts
+            ])
             part_convex_hull = Polygon(part_points[:, :2]).convex_hull
 
             centred_part_convex_hull = _centre_on_port(part_convex_hull)

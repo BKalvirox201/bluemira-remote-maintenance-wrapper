@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 import math
@@ -26,20 +29,16 @@ class PathAnimator:
     def axis_lines(
         origin: np.ndarray, rotation: np.ndarray, scale: float = 2.0
     ) -> list[pv.PolyData]:
-        return [
-            pv.Line(origin, origin + rotation[:, axis] * scale) for axis in range(3)
-        ]
+        return [pv.Line(origin, origin + rotation[:, axis] * scale) for axis in range(3)]
 
     @staticmethod
     def mesh_to_pyvista(mesh: Mesh) -> pv.PolyData:
         if len(mesh.triangles) == 0:
             raise ValueError(f"Mesh '{mesh.name}' contains no triangles.")
-        faces = np.column_stack(
-            (
-                np.full(len(mesh.triangles), 3),
-                mesh.triangles,
-            )
-        ).ravel()
+        faces = np.column_stack((
+            np.full(len(mesh.triangles), 3),
+            mesh.triangles,
+        )).ravel()
         return pv.PolyData(mesh.vertices, faces)
 
     @staticmethod
@@ -67,14 +66,12 @@ class PathAnimator:
     @staticmethod
     def state_rotation(state) -> np.ndarray:
         quaternion = state.rotation()
-        return Rotation.from_quat(
-            [
-                quaternion.x,
-                quaternion.y,
-                quaternion.z,
-                quaternion.w,
-            ]
-        ).as_matrix()
+        return Rotation.from_quat([
+            quaternion.x,
+            quaternion.y,
+            quaternion.z,
+            quaternion.w,
+        ]).as_matrix()
 
     @staticmethod
     def create_pose(
@@ -96,9 +93,7 @@ class PathAnimator:
             font_size=12,
         )
         for mesh in environment_meshes:
-            plotter.add_mesh(
-                self.mesh_to_pyvista(mesh), color="lightgrey", opacity=0.15
-            )
+            plotter.add_mesh(self.mesh_to_pyvista(mesh), color="lightgrey", opacity=0.15)
 
         payload_pyvista = self.mesh_to_pyvista(payload_mesh)
 
@@ -169,12 +164,10 @@ class PathAnimator:
                 rotation = slerp([fraction])[0]
                 interpolated_states.append((position, rotation.as_matrix()))
 
-        interpolated_states.append(
-            (
-                self.state_position(states[-1]),
-                self.state_rotation(states[-1]),
-            )
-        )
+        interpolated_states.append((
+            self.state_position(states[-1]),
+            self.state_rotation(states[-1]),
+        ))
         return interpolated_states
 
     def animate(
@@ -194,16 +187,14 @@ class PathAnimator:
         )
 
         states = list(planned_solution.states())
-        # NOTE: The value for animation_frames_per_meter was determined via trial and error
-        #       10 is a good value for the scale we are working at
+        # NOTE: The value for animation_frames_per_meter was determined via trial
+        #       and error, 10 is a good value for the scale we are working at
         animation_frames_per_meter = 10
         animation_states = self.interpolate_states(states, animation_frames_per_meter)
         state_count = len(animation_states)
 
         for mesh in environment_meshes:
-            plotter.add_mesh(
-                self.mesh_to_pyvista(mesh), color="lightgrey", opacity=0.15
-            )
+            plotter.add_mesh(self.mesh_to_pyvista(mesh), color="lightgrey", opacity=0.15)
 
         payload_pyvista = self.mesh_to_pyvista(payload_mesh)
         path_points = [position for position, _ in animation_states]
@@ -233,9 +224,7 @@ class PathAnimator:
         # for axis_line, color in zip(payload_axes, axis_colors):
         #     plotter.add_mesh(axis_line, color=color, line_width=4)
 
-        frame_duration_ms: int = math.trunc(
-            float(animation_time_s * 1000 / state_count)
-        )
+        frame_duration_ms: int = math.trunc(float(animation_time_s * 1000 / state_count))
 
         playback = {"index": 0, "playing": True}
 

@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -99,13 +103,11 @@ def test_group_mesh_rotation_pivot_is_vertex_weighted():
     original_vertices = [first.vertices.copy(), second.vertices.copy()]
 
     all_vertices = np.vstack(original_vertices)
-    expected_pivot_point = np.array(
-        [
-            all_vertices[:, 0].mean(),
-            all_vertices[:, 1].mean(),
-            all_vertices[:, 2].max(),
-        ]
-    )
+    expected_pivot_point = np.array([
+        all_vertices[:, 0].mean(),
+        all_vertices[:, 1].mean(),
+        all_vertices[:, 2].max(),
+    ])
     grouped = simulation._create_group_mesh([first, second])
 
     np.testing.assert_allclose(grouped.pivot_point, expected_pivot_point)
@@ -141,14 +143,12 @@ def test_group_mesh_accepts_a_custom_pivot_point():
 
 
 def test_default_pivot_uses_average_xy_and_highest_z():
-    vertices = np.array(
-        [
-            [100.0, 200.0, 1.0],
-            [4.0, 6.0, 5.0],
-            [2.0, 4.0, 3.0],
-            [8.0, 10.0, 5.0],
-        ]
-    )
+    vertices = np.array([
+        [100.0, 200.0, 1.0],
+        [4.0, 6.0, 5.0],
+        [2.0, 4.0, 3.0],
+        [8.0, 10.0, 5.0],
+    ])
 
     point = simulation_module.highest_z_average_xy_point(vertices)
 
@@ -180,9 +180,7 @@ def test_ibs_pivot_point_centres_x_and_averages_y():
         ([0, 1, 2, 3], [17.0, 1.0, 2.0]),
     ],
 )
-def test_obs_route_uses_middle_group_start_position_for_staging(
-    group_indices, expected
-):
+def test_obs_route_uses_middle_group_start_position_for_staging(group_indices, expected):
     blanket_groups = {
         ("OBS", index): [
             _make_mesh(
@@ -211,21 +209,17 @@ def test_start_rotation_uses_sector_bisector_and_restores_mesh_orientation():
     n_tf = 24
     bisector_angle = np.deg2rad(180.0 / n_tf)
     tangent_angle = bisector_angle + np.pi / 2
-    rotation = np.array(
-        [
-            [np.cos(tangent_angle), -np.sin(tangent_angle)],
-            [np.sin(tangent_angle), np.cos(tangent_angle)],
-        ]
-    )
+    rotation = np.array([
+        [np.cos(tangent_angle), -np.sin(tangent_angle)],
+        [np.sin(tangent_angle), np.cos(tangent_angle)],
+    ])
     footprint = (
-        np.array(
-            [
-                [-2.0, -0.5],
-                [2.0, -0.5],
-                [2.0, 0.5],
-                [-2.0, 0.5],
-            ]
-        )
+        np.array([
+            [-2.0, -0.5],
+            [2.0, -0.5],
+            [2.0, 0.5],
+            [-2.0, 0.5],
+        ])
         @ rotation.T
     )
     vertices = np.column_stack([footprint, np.zeros(len(footprint))])
@@ -365,7 +359,7 @@ def test_start_pose_restores_payload_to_world_pivot_point(monkeypatch, capsys):
     monkeypatch.setattr(constraints_module.fcl, "Transform", transform)
     validator.diagnostic_waypoint_name = "test pose"
 
-    np.testing.assert_equal(validator(_make_state(world_position, rotation)), True)
+    assert validator(_make_state(world_position, rotation))
 
     actual_rotation, actual_translation = payload_object.transform
     np.testing.assert_allclose(actual_rotation, rotation)
@@ -413,7 +407,7 @@ def test_start_pose_reports_named_environment_collision(monkeypatch, capsys):
         lambda payload, obstacle, request, result: int(obstacle is colliding_obstacle),
     )
 
-    np.testing.assert_equal(validator(_make_state(pivot_point, np.eye(3))), False)
+    assert not validator(_make_state(pivot_point, np.eye(3)))
 
     np.testing.assert_equal(
         validator.last_invalid_reason, "collision with ['sector_wall_2']"
@@ -435,9 +429,7 @@ def test_staging_pose_reports_orientation_rejection(monkeypatch, capsys):
     )
     validator.diagnostic_waypoint_name = "below_upper_port"
 
-    np.testing.assert_equal(
-        validator(_make_state([1.0, 2.0, 3.0], invalid_rotation)), False
-    )
+    assert not validator(_make_state([1.0, 2.0, 3.0], invalid_rotation))
 
     np.testing.assert_equal(validator.last_invalid_reason, "orientation constraint")
     np.testing.assert_equal(capsys.readouterr().out, "")
@@ -459,12 +451,7 @@ def test_staging_pose_reports_collision_with_environment_mesh(monkeypatch, capsy
         lambda payload, environment, request, result: 1,
     )
 
-    np.testing.assert_equal(
-        validator(
-            _make_state([1.0, 2.0, 3.0], np.eye(3)),
-        ),
-        False,
-    )
+    assert not validator(_make_state([1.0, 2.0, 3.0], np.eye(3)))
 
     np.testing.assert_equal(
         validator.last_invalid_reason, "collision with ['OBS_FW_0 1']"
@@ -524,7 +511,7 @@ def test_standard_route_preserves_start_and_staging_poses():
 
     np.testing.assert_equal(route.start.name, "starting position")
     np.testing.assert_equal(route.waypoints[1].name, "below_upper_port")
-    np.testing.assert_equal(route.waypoints[1].is_staging, True)
+    assert route.waypoints[1].is_staging
     np.testing.assert_array_equal(route.start.position, pivot_point)
     np.testing.assert_allclose(route.start.rotation_matrix, initial_rotation)
     np.testing.assert_array_equal(route.waypoints[1].position, [7.0, 8.0, 9.0])
@@ -559,7 +546,8 @@ def test_standard_route_visits_multiple_staging_waypoints_in_order():
         ["starting position", "first_staging", "second_staging", "end_position"],
     )
     np.testing.assert_array_equal(
-        route.goal.position, second_staging.position + [0.0, 0.0, 20.0]
+        route.goal.position,
+        np.add(second_staging.position, np.array([0.0, 0.0, 20.0])),
     )
     np.testing.assert_allclose(
         route.goal.rotation_matrix, second_staging.rotation_matrix
@@ -578,7 +566,8 @@ def test_standard_route_without_staging_goes_directly_to_end():
         ["starting position", "end_position"],
     )
     np.testing.assert_array_equal(
-        route.goal.position, group_mesh.pivot_point + [0.0, 0.0, 20.0]
+        route.goal.position,
+        np.add(group_mesh.pivot_point, np.array([0.0, 0.0, 20.0])),
     )
     np.testing.assert_allclose(route.goal.rotation_matrix, group_mesh.initial_rotation)
 
@@ -704,18 +693,16 @@ def test_blanket_removal_routes_create_staging_waypoints(blanket_type):
     route = create_route(blanket_mesh)
 
     staging_waypoint = route.waypoints[1]
-    np.testing.assert_equal(staging_waypoint.is_staging, True)
+    assert staging_waypoint.is_staging
     if blanket_type == "OBS":
         expected_position = simulation_module.highest_z_average_xy_point(
             blanket_mesh.vertices
         )
     else:
-        expected_position = np.array(
-            [
-                *(get_centerline_unit_vector(16)[:2] * 9.6),
-                blanket_mesh.pivot_point[2] - 0.4,
-            ]
-        )
+        expected_position = np.array([
+            *(get_centerline_unit_vector(16)[:2] * 9.6),
+            blanket_mesh.pivot_point[2] - 0.4,
+        ])
     np.testing.assert_allclose(
         staging_waypoint.position,
         expected_position,
@@ -753,22 +740,18 @@ def test_isolated_removal_uses_existing_routes_and_continues_after_failure(
 
     class FakeAnimator:
         def show_waypoints(self, payload_mesh, environment_meshes, route):
-            animator_calls["waypoints"].append(
-                (
-                    payload_mesh.name,
-                    [mesh.name for mesh in environment_meshes],
-                    route,
-                )
-            )
+            animator_calls["waypoints"].append((
+                payload_mesh.name,
+                [mesh.name for mesh in environment_meshes],
+                route,
+            ))
 
         def animate(self, payload_mesh, environment_meshes, planned_route):
-            animator_calls["animations"].append(
-                (
-                    payload_mesh.name,
-                    [mesh.name for mesh in environment_meshes],
-                    planned_route,
-                )
-            )
+            animator_calls["animations"].append((
+                payload_mesh.name,
+                [mesh.name for mesh in environment_meshes],
+                planned_route,
+            ))
 
     class FakeSinglePathPlanner:
         def __init__(self, *args):
@@ -838,7 +821,4 @@ def test_isolated_removal_uses_existing_routes_and_continues_after_failure(
         [args[3] for args in planned_inputs],
         [environment, environment],
     )
-    np.testing.assert_equal(
-        "No route found OBS_FW_0 1: staging waypoint is invalid" in caplog.text,
-        True,
-    )
+    assert "No route found OBS_FW_0 1: staging waypoint is invalid" in caplog.text

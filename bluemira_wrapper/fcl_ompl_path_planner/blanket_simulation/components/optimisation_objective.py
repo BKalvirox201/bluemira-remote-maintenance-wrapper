@@ -1,3 +1,6 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 import numpy as np
 import ompl.base as ob
 from scipy.spatial.transform import Rotation

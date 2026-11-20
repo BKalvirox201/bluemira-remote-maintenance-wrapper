@@ -1,3 +1,7 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
+
 from __future__ import annotations
 
 from types import SimpleNamespace
@@ -5,15 +9,14 @@ from unittest.mock import Mock, patch
 
 import numpy as np
 import pytest
-
 from bluemira.base.parameter_frame import Parameter
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.tools import extrude_shape, make_polygon
+
 from bluemira_wrapper.blanket_grouping import group_blanket_components
 from bluemira_wrapper.validators.blanket_validators.blanket_validator import (
     BlanketValidationParameters,
     BlanketValidator,
-    BlanketValidatorError,
     ValidationResult,
 )
 
@@ -237,15 +240,13 @@ class TestGeometryDimensionChecks:
 class TestAllPartsFitUpperPort:
     @staticmethod
     def make_rectangular_face(width: float, height: float) -> BluemiraFace:
-        points = np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [width, 0.0, 0.0],
-                [width, height, 0.0],
-                [0.0, height, 0.0],
-                [0.0, 0.0, 0.0],
-            ]
-        )
+        points = np.array([
+            [0.0, 0.0, 0.0],
+            [width, 0.0, 0.0],
+            [width, height, 0.0],
+            [0.0, height, 0.0],
+            [0.0, 0.0, 0.0],
+        ])
 
         return BluemiraFace(make_polygon(points, closed=True))
 
@@ -253,15 +254,13 @@ class TestAllPartsFitUpperPort:
     def make_trapezoid_face(
         bottom_width: float, top_width: float, height: float
     ) -> BluemiraFace:
-        points = np.array(
-            [
-                [-bottom_width / 2, 0.0, 0.0],
-                [bottom_width / 2, 0.0, 0.0],
-                [top_width / 2, height, 0.0],
-                [-top_width / 2, height, 0.0],
-                [-bottom_width / 2, 0.0, 0.0],
-            ]
-        )
+        points = np.array([
+            [-bottom_width / 2, 0.0, 0.0],
+            [bottom_width / 2, 0.0, 0.0],
+            [top_width / 2, height, 0.0],
+            [-top_width / 2, height, 0.0],
+            [-bottom_width / 2, 0.0, 0.0],
+        ])
         return BluemiraFace(make_polygon(points, closed=True))
 
     @staticmethod
@@ -310,9 +309,7 @@ class TestAllPartsFitUpperPort:
     def test_trapezoid_silhouettes_are_normalised_in_the_same_direction(
         self, validator: BlanketValidator
     ):
-        opening = self.make_trapezoid_face(
-            bottom_width=5.0, top_width=3.0, height=10.0
-        )
+        opening = self.make_trapezoid_face(bottom_width=5.0, top_width=3.0, height=10.0)
         opening.translate((10.0, 0.0, 0.0))
         blanket_shape = self.make_trapezoid_face(
             bottom_width=2.0, top_width=4.0, height=8.0

@@ -1,10 +1,16 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
 
 from dataclasses import dataclass
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import NDArray
 from scipy.spatial.transform import Rotation
+
+if TYPE_CHECKING:
+    from numpy.typing import NDArray
 
 
 def _normalise_rotation_matrix(rotation_matrix: np.ndarray) -> np.ndarray:

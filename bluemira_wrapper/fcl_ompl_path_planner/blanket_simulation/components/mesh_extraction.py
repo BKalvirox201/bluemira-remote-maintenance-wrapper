@@ -1,16 +1,24 @@
+# SPDX-FileCopyrightText: 2026-present N.Salt
+#
+# SPDX-License-Identifier: MIT 2026
 from __future__ import annotations
+
+from typing import TYPE_CHECKING
 
 import MeshPart
 import numpy as np
-import Part
-
 from bluemira.base.components import PhysicalComponent
 from bluemira.base.look_and_feel import bluemira_print
+
 from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation.components.models import (
     Mesh,
 )
-from eudemo.blanket import Blanket
-from eudemo.vacuum_vessel import VacuumVessel
+
+if TYPE_CHECKING:
+    import Part
+
+    from eudemo.blanket import Blanket
+    from eudemo.vacuum_vessel import VacuumVessel
 
 
 class MeshExtractor:
@@ -62,15 +70,16 @@ class MeshExtractor:
         bluemira_print("Extracting Blanket meshes for collision detection")
         blanket_component = blanket.component()
         xyz_component = (
-            blanket_component.get_component("xyz")
+            blanket_component
+            .get_component("xyz")
             .get_component("Sector 1")
             .get_component("BB 1")
         )
-        meshes = []
-        for child in xyz_component.children:
-            if isinstance(child, PhysicalComponent):
-                meshes.append(MeshExtractor.component_to_mesh(child))
-        return meshes
+        return [
+            MeshExtractor.component_to_mesh(child)
+            for child in xyz_component.children
+            if isinstance(child, PhysicalComponent)
+        ]
 
     @staticmethod
     def vacuum_vessel_meshes(vacuum_vessel: VacuumVessel) -> list[Mesh]:
