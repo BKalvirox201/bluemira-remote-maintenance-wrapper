@@ -115,9 +115,7 @@ class TestMassWithinLimits:
         assert not result.passed
         assert "OBS blanket 0" in result.message
 
-    def test_checks_all_parts_when_mass_exceeds_limit(
-        self, blanket, validation_params
-    ):
+    def test_checks_all_parts_when_mass_exceeds_limit(self, blanket, validation_params):
         parts = (
             make_physical_component(SimpleNamespace(volume=2.0), name="OBS_FW_0 1"),
             make_physical_component(SimpleNamespace(volume=0.5), name="OBS_BZ_0 1"),
@@ -130,9 +128,7 @@ class TestMassWithinLimits:
             part.material.density.return_value = 1000.0
 
         validator = BlanketValidator(blanket, validation_params)
-        result = validator._mass_within_limits(
-            group_parts(*parts), mass_limit=1000.0
-        )
+        result = validator._mass_within_limits(group_parts(*parts), mass_limit=1000.0)
 
         assert not result.passed
         assert "OBS blanket 0" in result.message
@@ -241,15 +237,13 @@ class TestGeometryDimensionChecks:
 class TestAllPartsFitUpperPort:
     @staticmethod
     def make_rectangular_face(width: float, height: float) -> BluemiraFace:
-        points = np.array(
-            [
-                [0.0, 0.0, 0.0],
-                [width, 0.0, 0.0],
-                [width, height, 0.0],
-                [0.0, height, 0.0],
-                [0.0, 0.0, 0.0],
-            ]
-        )
+        points = np.array([
+            [0.0, 0.0, 0.0],
+            [width, 0.0, 0.0],
+            [width, height, 0.0],
+            [0.0, height, 0.0],
+            [0.0, 0.0, 0.0],
+        ])
 
         return BluemiraFace(make_polygon(points, closed=True))
 
@@ -358,9 +352,7 @@ class TestAllPartsFitUpperPort:
         assert not results[0].passed
         assert "OBS blanket 0" in results[0].message
 
-    def test_numerical_boundary_tolerance_allows_fit(
-        self, validator: BlanketValidator
-    ):
+    def test_numerical_boundary_tolerance_allows_fit(self, validator: BlanketValidator):
         opening = self.make_rectangular_face(width=2.0, height=1.5)
         part = make_physical_component(
             self.make_rectangular_face(width=1.4, height=1.4), name="OBS_FW_0 1"

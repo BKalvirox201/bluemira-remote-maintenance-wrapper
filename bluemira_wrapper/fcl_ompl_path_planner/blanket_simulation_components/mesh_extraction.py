@@ -6,10 +6,11 @@ import Part
 from bluemira.base.components import PhysicalComponent
 from bluemira.base.look_and_feel import bluemira_print
 
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+    Mesh,
+)
 from eudemo.blanket import Blanket
 from eudemo.vacuum_vessel import VacuumVessel
-
-from .models import Mesh
 
 
 class MeshExtractor:

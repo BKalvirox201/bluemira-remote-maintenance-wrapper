@@ -6,10 +6,6 @@ from typing import cast
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matproplib.conditions import STPConditions
-from shapely import Polygon, affinity
-from shapely.geometry.base import BaseGeometry
-
 from bluemira.base.components import Component, PhysicalComponent
 from bluemira.base.parameter_frame import (
     Parameter,
@@ -19,6 +15,10 @@ from bluemira.base.parameter_frame import (
 from bluemira.geometry.base import BluemiraGeo
 from bluemira.geometry.face import BluemiraFace
 from bluemira.geometry.tools import offset_wire
+from matproplib.conditions import STPConditions
+from shapely import Polygon, affinity
+from shapely.geometry.base import BaseGeometry
+
 from bluemira_wrapper.blanket_grouping import group_blanket_components
 from eudemo.blanket import Blanket
 
@@ -126,27 +126,21 @@ class BlanketValidator(Validator):
 
             if length > maximum_length:
                 failure_messages.append(
-                    (
-                        f"{group_name} exceeds maximum length. "
-                        f"Length={length:.3f} m "
-                        f"Limit={maximum_length:.3f} m"
-                    )
+                    f"{group_name} exceeds maximum length. "
+                    f"Length={length:.3f} m "
+                    f"Limit={maximum_length:.3f} m"
                 )
             if width > maximum_width:
                 failure_messages.append(
-                    (
-                        f"{group_name} exceeds maximum width. "
-                        f"Width={width:.3f} m "
-                        f"Limit={maximum_width:.3f} m"
-                    )
+                    f"{group_name} exceeds maximum width. "
+                    f"Width={width:.3f} m "
+                    f"Limit={maximum_width:.3f} m"
                 )
             if height > maximum_height:
                 failure_messages.append(
-                    (
-                        f"{group_name} exceeds maximum height. "
-                        f"Height={height:.3f} m "
-                        f"Limit={maximum_height:.3f} m"
-                    )
+                    f"{group_name} exceeds maximum height. "
+                    f"Height={height:.3f} m "
+                    f"Limit={maximum_height:.3f} m"
                 )
 
         return ValidationResult(
@@ -186,12 +180,10 @@ class BlanketValidator(Validator):
         opening_convex_hull = Polygon(opening_points[:, :2]).convex_hull
 
         for group_key, parts in blanket_groups.items():
-            part_points = np.vstack(
-                [
-                    points_from_vertices(normalise_part_rotation(part.shape).vertexes)
-                    for part in parts
-                ]
-            )
+            part_points = np.vstack([
+                points_from_vertices(normalise_part_rotation(part.shape).vertexes)
+                for part in parts
+            ])
             part_convex_hull = Polygon(part_points[:, :2]).convex_hull
             centred_part_convex_hull = affinity.translate(
                 part_convex_hull,
@@ -245,10 +237,8 @@ class BlanketValidator(Validator):
 
             if mass > mass_limit:
                 failure_messages.append(
-                    (
-                        f"{_blanket_group_name(group_key)} exceeds mass limit. "
-                        f"Mass={mass:.3f} Limit={mass_limit:.3f}"
-                    )
+                    f"{_blanket_group_name(group_key)} exceeds mass limit. "
+                    f"Mass={mass:.3f} Limit={mass_limit:.3f}"
                 )
 
         return ValidationResult(
@@ -267,10 +257,10 @@ def _get_all_blanket_subcomponents(
 ) -> tuple[PhysicalComponent, ...]:
     blanket_component: Component = blanket.component()
     # NOTE: if we just get the xy vertexes. It just gives a crossection at z=0
-    blanket_xyz = cast(Component, blanket_component.get_component("xyz"))
-    sector_one_blanket = cast(Component, blanket_xyz.get_component("BB 1"))
+    blanket_xyz = cast("Component", blanket_component.get_component("xyz"))
+    sector_one_blanket = cast("Component", blanket_xyz.get_component("BB 1"))
     return tuple(
-        cast(PhysicalComponent, child) for child in sector_one_blanket.children
+        cast("PhysicalComponent", child) for child in sector_one_blanket.children
     )
 
 

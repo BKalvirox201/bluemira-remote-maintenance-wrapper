@@ -20,7 +20,6 @@ The EUDEMO reactor design routine.
 11. Produce power cycle report
 """
 
-import json
 import shutil
 import time
 from copy import copy
@@ -28,8 +27,6 @@ from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
-from matproplib.conditions import OperationalConditions
-
 from bluemira.base.components import Component
 from bluemira.base.designer import run_designer
 from bluemira.base.logs import set_log_level
@@ -60,6 +57,8 @@ from bluemira.radiation_transport.neutronics.zero_d_neutronics import (
     ZeroDNeutronicsModel,
 )
 from bluemira.utilities.tools import json_writer
+from matproplib.conditions import OperationalConditions
+
 from bluemira_wrapper.fcl_ompl_path_planner.blanket_removal_simulation import (
     BlanketRemovalSimulation,
 )
@@ -696,13 +695,11 @@ if __name__ == "__main__":
         reactor_config = ReactorConfig(BUILD_CONFIG_FILE_PATH, EUDEMOReactorParams)
         reactor = EUDEMO("EUDEMO", n_sectors=reactor_config.global_params.n_TF.value)
 
-        establish_material_cache(
-            [
-                "eudemo.materials",
-                "eurofusion_materials.library",
-                "matproplib",
-            ]
-        )
+        establish_material_cache([
+            "eudemo.materials",
+            "eurofusion_materials.library",
+            "matproplib",
+        ])
 
         process_start = time.time()
         radial_build(

@@ -109,9 +109,7 @@ class BlanketBuilder(Builder):
             + self.get_segments(ib_manifold, self.MANIFOLD, inboard=True, color_index=2)
             + self.get_segments(ob_fw, self.FW, inboard=False, color_index=0)
             + self.get_segments(ob_bz, self.BZ, inboard=False, color_index=1)
-            + self.get_segments(
-                ob_manifold, self.MANIFOLD, inboard=False, color_index=2
-            )
+            + self.get_segments(ob_manifold, self.MANIFOLD, inboard=False, color_index=2)
         )
 
         return self.component_tree(

@@ -1,10 +1,17 @@
 from __future__ import annotations
 
+import math
+
 import numpy as np
 import pyvista as pv
 from scipy.spatial.transform import Rotation, Slerp
 
-from .models import Mesh, PlannedPath, PlannedRoute, WaypointRoute
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+    Mesh,
+    PlannedPath,
+    PlannedRoute,
+    WaypointRoute,
+)
 
 
 class PathAnimator:
@@ -226,9 +233,9 @@ class PathAnimator:
         # for axis_line, color in zip(payload_axes, axis_colors):
         #     plotter.add_mesh(axis_line, color=color, line_width=4)
 
-        frame_duration_ms: int = float(
-            animation_time_s * 1000 / state_count
-        ).__trunc__()
+        frame_duration_ms: int = math.trunc(
+            float(animation_time_s * 1000 / state_count)
+        )
 
         playback = {"index": 0, "playing": True}
 

@@ -1,30 +1,34 @@
 from __future__ import annotations
 
-from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from functools import partial
-from typing import Callable
+from typing import TYPE_CHECKING
 
 import numpy as np
-from numpy.typing import ArrayLike
-from scipy.spatial import ConvexHull
-from scipy.spatial.transform import Rotation
-from shapely.geometry import Polygon
-
 from bluemira.base.look_and_feel import (
     bluemira_print,
     bluemira_print_flush,
     bluemira_warn,
 )
-from bluemira_wrapper.blanket_grouping import group_blanket_components
-from eudemo.blanket import Blanket
-from eudemo.vacuum_vessel import VacuumVessel
+from scipy.spatial import ConvexHull
+from scipy.spatial.transform import Rotation
+from shapely.geometry import Polygon
 
-from .lib.animation import PathAnimator
-from .lib.constraints import PayloadConstraints
-from .lib.environment import EnvironmentBuilder, PayloadBuilder
-from .lib.mesh_extraction import MeshExtractor
-from .lib.models import (
+from bluemira_wrapper.blanket_grouping import group_blanket_components
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.animation import (  # noqa: E501
+    PathAnimator,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.constraints import (  # noqa: E501
+    PayloadConstraints,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.environment import (  # noqa: E501
+    EnvironmentBuilder,
+    PayloadBuilder,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.mesh_extraction import (  # noqa: E501
+    MeshExtractor,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
     Mesh,
     Waypoint,
     WaypointRoute,
@@ -32,7 +36,18 @@ from .lib.models import (
     euler_degrees_to_rotation_matrix,
     rotation_matrix_to_euler_degrees,
 )
-from .lib.planning import RoutePlanner, SinglePathPlanner
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.planning import (  # noqa: E501
+    RoutePlanner,
+    SinglePathPlanner,
+)
+
+if TYPE_CHECKING:
+    from collections.abc import Callable, Mapping, Sequence
+
+    from numpy.typing import ArrayLike
+
+    from eudemo.blanket import Blanket
+    from eudemo.vacuum_vessel import VacuumVessel
 
 
 @dataclass(frozen=True)
@@ -286,13 +301,11 @@ class BlanketRemovalSimulation:
             yaw_degrees = float(np.degrees(centreline_angle))
             return Waypoint(
                 name="below_upper_port",
-                position=np.array(
-                    [
-                        centreline_uv[0] * distance_from_origin,
-                        centreline_uv[1] * distance_from_origin,
-                        pivot_point[2] - 0.4,
-                    ]
-                ),
+                position=np.array([
+                    centreline_uv[0] * distance_from_origin,
+                    centreline_uv[1] * distance_from_origin,
+                    pivot_point[2] - 0.4,
+                ]),
                 pitch_degrees=pitch_degrees,
                 yaw_degrees=yaw_degrees,
                 rotation_matrix=rotation_matrix,
@@ -396,7 +409,7 @@ class BlanketRemovalSimulation:
             if plan.group_key not in blanket_groups
         ]
         if unknown_groups:
-            raise ValueError(f"Unknown blanket groups: " f"{unknown_groups}")
+            raise ValueError(f"Unknown blanket groups: {unknown_groups}")
 
         unknown_staging_groups = (
             set(staging_waypoints_by_group or {}) - blanket_groups.keys()
@@ -524,9 +537,11 @@ def ibs_group_pivot_point(blanket_group: Sequence[Mesh]) -> np.ndarray:
 
 def get_centerline_unit_vector(n_TF: int):
     bisector_angle = 180.0 / n_TF
-    centerline_direction = np.array(
-        [np.cos(np.radians(bisector_angle)), np.sin(np.radians(bisector_angle)), 0.0]
-    )
+    centerline_direction = np.array([
+        np.cos(np.radians(bisector_angle)),
+        np.sin(np.radians(bisector_angle)),
+        0.0,
+    ])
     centerline_direction /= np.linalg.norm(centerline_direction)
     return centerline_direction
 

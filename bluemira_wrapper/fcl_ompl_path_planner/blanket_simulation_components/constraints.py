@@ -6,7 +6,9 @@ import fcl
 import numpy as np
 from scipy.spatial.transform import Rotation
 
-from .models import rotation_matrix_to_euler_degrees
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
+    rotation_matrix_to_euler_degrees,
+)
 
 
 @dataclass
@@ -58,12 +60,14 @@ class PayloadStateValidator:
     @staticmethod
     def state_to_rotation_matrix(state) -> np.ndarray:
         quaternion = state.rotation()
-        return Rotation.from_quat([
-            quaternion.x,
-            quaternion.y,
-            quaternion.z,
-            quaternion.w,
-        ]).as_matrix()
+        return Rotation.from_quat(
+            [
+                quaternion.x,
+                quaternion.y,
+                quaternion.z,
+                quaternion.w,
+            ]
+        ).as_matrix()
 
     def __call__(self, state) -> bool:
         self.last_invalid_reason = None

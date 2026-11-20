@@ -13,27 +13,35 @@ from bluemira_wrapper.fcl_ompl_path_planner.blanket_removal_simulation import (
     BlanketRemovalSimulation,
     get_centerline_unit_vector,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.lib import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components import (
     constraints as constraints_module,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.lib import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components import (
     mesh_extraction as mesh_extraction_module,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.lib.animation import PathAnimator
-from bluemira_wrapper.fcl_ompl_path_planner.lib.constraints import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.animation import (
+    PathAnimator,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.constraints import (
     PayloadConstraints,
     PayloadStateValidator,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.lib.environment import EnvironmentBuilder
-from bluemira_wrapper.fcl_ompl_path_planner.lib.mesh_extraction import MeshExtractor
-from bluemira_wrapper.fcl_ompl_path_planner.lib.models import (
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.environment import (
+    EnvironmentBuilder,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.mesh_extraction import (
+    MeshExtractor,
+)
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.models import (
     Mesh,
     Waypoint,
     WorkspaceBounds,
     euler_degrees_to_rotation_matrix,
     rotation_matrix_to_euler_degrees,
 )
-from bluemira_wrapper.fcl_ompl_path_planner.lib.planning import SinglePathPlanner
+from bluemira_wrapper.fcl_ompl_path_planner.blanket_simulation_components.planning import (
+    SinglePathPlanner,
+)
 
 
 class FakeCollisionObject:
@@ -193,7 +201,7 @@ def test_obs_route_uses_middle_group_start_position_for_staging(
     simulation = BlanketRemovalSimulation(None, None, n_TF=24)
 
     route = simulation._create_obs_removal_route(
-        blanket_groups[("OBS", group_indices[0])][0],
+        blanket_groups["OBS", group_indices[0]][0],
         blanket_groups=blanket_groups,
     )
 
@@ -204,17 +212,21 @@ def test_start_rotation_uses_sector_bisector_and_restores_mesh_orientation():
     n_tf = 24
     bisector_angle = np.deg2rad(180.0 / n_tf)
     tangent_angle = bisector_angle + np.pi / 2
-    rotation = np.array([
-        [np.cos(tangent_angle), -np.sin(tangent_angle)],
-        [np.sin(tangent_angle), np.cos(tangent_angle)],
-    ])
+    rotation = np.array(
+        [
+            [np.cos(tangent_angle), -np.sin(tangent_angle)],
+            [np.sin(tangent_angle), np.cos(tangent_angle)],
+        ]
+    )
     footprint = (
-        np.array([
-            [-2.0, -0.5],
-            [2.0, -0.5],
-            [2.0, 0.5],
-            [-2.0, 0.5],
-        ])
+        np.array(
+            [
+                [-2.0, -0.5],
+                [2.0, -0.5],
+                [2.0, 0.5],
+                [-2.0, 0.5],
+            ]
+        )
         @ rotation.T
     )
     vertices = np.column_stack([footprint, np.zeros(len(footprint))])
@@ -374,9 +386,7 @@ def test_pose_matrices_place_pivot_at_waypoint_position():
     state = _make_state(waypoint_position, rotation)
 
     planner_pose = SinglePathPlanner.pose_matrix(state, pivot_point)
-    animation_pose = PathAnimator.create_pose(
-        waypoint_position, rotation, pivot_point
-    )
+    animation_pose = PathAnimator.create_pose(waypoint_position, rotation, pivot_point)
 
     for pose in (planner_pose, animation_pose):
         np.testing.assert_allclose(
@@ -744,18 +754,22 @@ def test_isolated_removal_uses_existing_routes_and_continues_after_failure(
 
     class FakeAnimator:
         def show_waypoints(self, payload_mesh, environment_meshes, route):
-            animator_calls["waypoints"].append((
-                payload_mesh.name,
-                [mesh.name for mesh in environment_meshes],
-                route,
-            ))
+            animator_calls["waypoints"].append(
+                (
+                    payload_mesh.name,
+                    [mesh.name for mesh in environment_meshes],
+                    route,
+                )
+            )
 
         def animate(self, payload_mesh, environment_meshes, planned_route):
-            animator_calls["animations"].append((
-                payload_mesh.name,
-                [mesh.name for mesh in environment_meshes],
-                planned_route,
-            ))
+            animator_calls["animations"].append(
+                (
+                    payload_mesh.name,
+                    [mesh.name for mesh in environment_meshes],
+                    planned_route,
+                )
+            )
 
     class FakeSinglePathPlanner:
         def __init__(self, *args):
@@ -826,7 +840,6 @@ def test_isolated_removal_uses_existing_routes_and_continues_after_failure(
         [environment, environment],
     )
     np.testing.assert_equal(
-        "No route found OBS_FW_0 1: staging waypoint is invalid"
-        in caplog.text,
+        "No route found OBS_FW_0 1: staging waypoint is invalid" in caplog.text,
         True,
     )
